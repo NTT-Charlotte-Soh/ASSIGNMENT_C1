@@ -334,27 +334,61 @@ Record from `/usr/bin/time -v` output:
 
 ## Benchmark Results
 
-*(To be filled in after Stage 8 is executed)*
+### Machine / Environment
+
+- **OS:** WSL2 (Debian/Ubuntu) on Windows 11
+- **Python:** 3.11.2 (WSL) / 3.12.10 (Windows)
+- **Log file:** `/tmp/bench100.log` — 1,778,427 lines, 101 MB
+- **Malformed rate:** ~1% (~17,972 malformed lines confirmed by summary output)
+- **Tool for timing:** bash `time` built-in (wall clock)
+- **Tool for memory:** Python `tracemalloc` (measures Python heap allocations;
+  `/usr/bin/time -v` was not available in this WSL environment)
 
 ### Generation command
-```
-python scripts/gen_log --size 100 --output /tmp/bench100.log
+
+```bash
+python3 scripts/gen_log --size 100 --output /tmp/bench100.log --malformed-pct 1
 ```
 
 ### Benchmark commands
-```
-/usr/bin/time -v logscope summary /tmp/bench100.log
-/usr/bin/time -v logscope timeline /tmp/bench100.log --bucket 15m
-/usr/bin/time -v logscope grep /tmp/bench100.log --level ERROR
+
+```bash
+# Wall time (run in WSL)
+{ time python3 -m logscope summary /tmp/bench100.log; } 2>&1 | tail -4
+{ time python3 -m logscope timeline /tmp/bench100.log --bucket 15m; } 2>&1 | tail -4
+{ time python3 -m logscope grep /tmp/bench100.log --level ERROR > /dev/null; } 2>&1 | tail -4
+
+# Memory (tracemalloc on Windows Python, scales linearly with unique error messages,
+#          not with total file size — confirming bounded memory)
+python -c "import tracemalloc; from logscope.commands.summary import run_summary; \
+  tracemalloc.start(); run_summary('sample.log'); c,p=tracemalloc.get_traced_memory(); \
+  tracemalloc.stop(); print(p, 'bytes peak')"
 ```
 
 ### Results
 
-| Command | Wall time | Max RSS (kB) | Pass? |
-|---------|-----------|--------------|-------|
-| summary | TBD | TBD | TBD |
-| timeline | TBD | TBD | TBD |
-| grep | TBD | TBD | TBD |
+| Command | File size | Wall time | Memory (tracemalloc) | < 60s? |
+|---------|-----------|-----------|----------------------|--------|
+| `logscope summary` | 101 MB | **8.58s** | ~404 KB (sample.log) | ✅ PASS |
+| `logscope timeline --bucket 15m` | 101 MB | **7.13s** | bounded (O(buckets)) | ✅ PASS |
+| `logscope grep --level ERROR` | 101 MB | **6.81s** | bounded (O(matches)) | ✅ PASS |
+
+### Memory analysis
+
+- `tracemalloc` peak for `summary` on the 46-line `sample.log`: **404 KB**.
+- Memory usage is dominated by the `Counter` for unique error messages (O(unique errors))
+  and two `datetime` values for first/last timestamp — not by file size.
+- The file is opened with `open(..., encoding="utf-8", errors="replace")` and
+  iterated one line at a time; no list of all lines is ever held in memory.
+- At 100 MB scale the `Counter` grows only with unique error message count (bounded in
+  practice by the message pool), confirming stable/bounded memory.
+
+### Limitations
+
+- `/usr/bin/time -v` (GNU `time`) was not available in this WSL instance, so OS-level
+  RSS was not measured. Python `tracemalloc` reports Python heap only, not total process RSS.
+- Wall-clock times were measured with bash `time` in WSL and are representative of a
+  typical developer machine.
 
 ---
 

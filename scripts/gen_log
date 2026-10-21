@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Synthetic log generator for logscope benchmarking.
+
+Generates a realistic-looking log file of approximately the requested size.
+
+Usage:
+    python scripts/gen_log --size 100 --output /tmp/bench100.log
+    python scripts/gen_log --size 100 --output /tmp/bench100.log --malformed-pct 2
+
+Options:
+    --size N          Target file size in megabytes (default: 100)
+    --output PATH     Output file path (default: /tmp/bench100.log)
+    --malformed-pct N Percentage of lines that are malformed (default: 1)
+
+The generator writes lines one at a time (never loads the entire file into
+memory) and stops when the file reaches the requested size.
+
+Generated line format:
+    YYYY-MM-DD HH:MM:SS LEVEL message text
+
+Level distribution (approximate):
+    INFO  70%
+    WARN  20%
+    ERROR 10%
+
+A malformed line is a random garbage string with no timestamp.
+
+Exit codes:
+    0  Success
+    1  Error (bad arguments, unable to open output file)
+"""
+
+import argparse
+import os
+import random
+import sys
+from datetime import datetime, timedelta
+
+# ---------------------------------------------------------------------------
+# Message pools
+# ---------------------------------------------------------------------------
+
+_INFO_MESSAGES = [
+    "Application started successfully",
+    "Configuration loaded from /etc/app/config.yaml",
+    "Worker pool initialised with {n} threads",
+    "Health check passed",
+    "Processed {n} requests",
+    "Cache hit rate: {p:.1f}%",
+    "Connection to upstream established",
+    "Serving requests from cache",
+    "Token refreshed for user {user}",
+    "Log rotation completed; freed {n} MB",
+    "Scheduled maintenance window in {n} minutes",
+    "Worker thread restarted",
+    "All systems nominal",
+    "Database connection restored",
+]
+
+_WARN_MESSAGES = [
+    "Disk usage at {n}% on /dev/sda1",
+    "Memory usage at {n}%",
+    "CPU usage at {n}% for >{t}s",
+    "Network latency spike: {n}ms average",
+    "All database retries exhausted; switching to read-only cache",
+    "Log rotation triggered",
+    "Slow query detected: {n}ms",
+    "Connection pool near capacity: {n}/{m}",
+]
+
+_ERROR_MESSAGES = [
+    "Failed to connect to database: timeout after 30s",
+    "Null pointer exception in worker thread: java.lang.NullPointerException",
+    "Disk write failed: no space left on device",
+    "Auth token expired for user {user}",
+    "Unexpected EOF reading response from upstream",
+    "Segmentation fault in module {mod}",
+    "Connection refused to cache server at {host}:{port}",
+    "Out of memory: kill process {n} ({proc})",
+]
+
+_MALFORMED_LINES = [
+    "this line is malformed and should be counted",
+    "*** SYSTEM ALERT *** critical threshold exceeded",
+    "[FATAL] unhandled exception",
+    "---",
+    "  ",
+    "garbage data: 0xDEADBEEF",
+    "!!CRASH!! core dumped",
+    "^C^C^C signal received",
+]
+
+_LEVELS = ["INFO"] * 70 + ["WARN"] * 20 + ["ERROR"] * 10
+_USERS = ["admin@example.com", "ops@example.com", "svc-monitor@example.com"]
+_MODS = ["auth", "cache", "db", "worker", "scheduler"]
+_PROCS = ["python3", "java", "node", "ruby"]
+_HOSTS = ["10.0.0.1", "10.0.0.2", "redis.internal"]
+
+
+def _render(template: str) -> str:
+    """Fill placeholders in a message template."""
+    return template.format(
+        n=random.randint(1, 9999),
+        m=random.randint(100, 200),
+        p=random.uniform(50, 99),
+        t=random.randint(30, 120),
+        user=random.choice(_USERS),
+        mod=random.choice(_MODS),
+        host=random.choice(_HOSTS),
+        port=random.randint(6000, 7000),
+        proc=random.choice(_PROCS),
+    )
+
+
+def _generate_line(ts: datetime, malformed: bool) -> str:
+    """Generate a single log line."""
+    if malformed:
+        return random.choice(_MALFORMED_LINES)
+
+    level = random.choice(_LEVELS)
+    if level == "INFO":
+        msg = _render(random.choice(_INFO_MESSAGES))
+    elif level == "WARN":
+        msg = _render(random.choice(_WARN_MESSAGES))
+    else:
+        msg = _render(random.choice(_ERROR_MESSAGES))
+
+    return f"{ts.strftime('%Y-%m-%d %H:%M:%S')} {level} {msg}"
+
+
+def generate(output_path: str, size_mb: int, malformed_pct: float) -> None:
+    """Generate a synthetic log file.
+
+    Parameters
+    ----------
+    output_path : str
+        Path to write the output log file.
+    size_mb : int
+        Target file size in megabytes.
+    malformed_pct : float
+        Percentage of lines (0-100) that should be malformed.
+    """
+    target_bytes = size_mb * 1024 * 1024
+    malformed_rate = malformed_pct / 100.0
+
+    # Start at a fixed base timestamp; advance ~1 second per line on average
+    ts = datetime(2026, 10, 1, 9, 0, 0)
+    dt_step = timedelta(seconds=1)
+
+    bytes_written = 0
+    line_count = 0
+
+    try:
+        fh = open(output_path, "w", encoding="utf-8", buffering=65536)
+    except OSError as exc:
+        print(f"gen_log: error: cannot open '{output_path}': {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    with fh:
+        while bytes_written < target_bytes:
+            is_malformed = random.random() < malformed_rate
+            line = _generate_line(ts, is_malformed)
+            fh.write(line + "\n")
+            bytes_written += len(line) + 1  # approximate (ASCII-dominant)
+            line_count += 1
+            # Advance timestamp by 0 to 2 seconds randomly
+            ts += dt_step * random.randint(0, 2)
+
+    actual_mb = os.path.getsize(output_path) / (1024 * 1024)
+    print(
+        f"Generated {line_count:,} lines, {actual_mb:.1f} MB → {output_path}",
+        file=sys.stderr,
+    )
+
+
+def main() -> None:
+    """Entry point for the gen_log script."""
+    parser = argparse.ArgumentParser(
+        description="Generate a synthetic log file for logscope benchmarking.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=100,
+        metavar="MB",
+        help="Target file size in megabytes (default: 100)",
+    )
+    parser.add_argument(
+        "--output",
+        default="/tmp/bench100.log",
+        metavar="PATH",
+        help="Output file path (default: /tmp/bench100.log)",
+    )
+    parser.add_argument(
+        "--malformed-pct",
+        type=float,
+        default=1.0,
+        metavar="PCT",
+        dest="malformed_pct",
+        help="Percentage of malformed lines (default: 1.0)",
+    )
+
+    args = parser.parse_args()
+
+    if args.size <= 0:
+        print("gen_log: error: --size must be a positive integer", file=sys.stderr)
+        sys.exit(1)
+    if not (0 <= args.malformed_pct <= 100):
+        print("gen_log: error: --malformed-pct must be between 0 and 100", file=sys.stderr)
+        sys.exit(1)
+
+    generate(args.output, args.size, args.malformed_pct)
+
+
+if __name__ == "__main__":
+    main()
