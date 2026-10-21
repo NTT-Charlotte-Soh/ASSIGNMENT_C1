@@ -30,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
     _add_timeline_subcommand(subparsers)
     # Stage 6: grep
     _add_grep_subcommand(subparsers)
+    # Stage 10: explain (optional stretch goal)
+    _add_explain_subcommand(subparsers)
 
     return parser
 
@@ -93,6 +95,16 @@ def _add_grep_subcommand(subparsers) -> None:
     )
     _add_format_argument(p)
     p.set_defaults(func=_cmd_grep)
+
+
+def _add_explain_subcommand(subparsers) -> None:
+    """Register the 'explain' subcommand."""
+    p = subparsers.add_parser(
+        "explain",
+        help="Send top errors to a configured LLM for root-cause analysis (optional).",
+    )
+    p.add_argument("logfile", help="Path to the log file.")
+    p.set_defaults(func=_cmd_explain)
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +177,13 @@ def _cmd_grep(args: argparse.Namespace) -> None:
             print("No matching log lines found.", file=sys.stderr)
             sys.exit(3)
         print_grep(result)
+
+
+def _cmd_explain(args: argparse.Namespace) -> None:
+    """Dispatch the explain command."""
+    from logscope.commands.explain import run_explain
+
+    run_explain(args.logfile)
 
 
 def main() -> None:
