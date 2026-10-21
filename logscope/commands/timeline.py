@@ -68,7 +68,7 @@ def _bucket_epoch(ts: datetime, bucket_seconds: int) -> int:
 
 def _epoch_to_label(epoch: int) -> str:
     """Format a bucket-start epoch as ``YYYY-MM-DD HH:MM``."""
-    return datetime.utcfromtimestamp(epoch).strftime("%Y-%m-%d %H:%M")
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
 def run_timeline(filepath: str, bucket_seconds: int, bucket_str: str) -> dict:
