@@ -1,0 +1,46 @@
+2026-10-01 09:00:01 INFO  Application started successfully
+2026-10-01 09:00:03 DEBUG Cache initialized with 256MB limit
+2026-10-01 09:00:05 INFO  Listening on port 8080
+2026-10-01 09:00:10 ERROR Failed to connect to database: timeout
+2026-10-01 09:00:15 WARN  Disk usage at 80% on /dev/sda1
+2026-10-01 09:00:20 INFO  Worker pool started with 4 threads
+2026-10-01 09:00:25 ERROR Failed to connect to database: timeout
+2026-10-01 09:00:30 INFO  Health check passed
+2026-10-01 09:00:35 DEBUG Request received: GET /api/status
+2026-10-01 09:00:40 INFO  Request processed in 12ms
+2026-10-01 09:00:45 ERROR Null pointer exception in worker thread
+2026-10-01 09:00:50 WARN  Memory usage above threshold: 75%
+2026-10-01 09:01:00 INFO  Retrying database connection (attempt 1)
+2026-10-01 09:01:05 ERROR Failed to connect to database: timeout
+2026-10-01 09:01:10 INFO  Retrying database connection (attempt 2)
+2026-10-01 09:01:15 ERROR Failed to connect to database: timeout
+2026-10-01 09:01:20 WARN  Slow query detected: 2300ms for SELECT users
+2026-10-01 09:01:25 INFO  Database connection established
+2026-10-01 09:01:30 DEBUG Query cache hit rate: 62%
+2026-10-01 09:01:35 INFO  Processing batch job: 1500 records
+THIS LINE IS MALFORMED AND SHOULD BE COUNTED
+2026-10-01 09:01:40 ERROR Disk write failed
+2026-10-01 09:01:45 INFO  Batch job completed: 1498 records processed
+2026-10-01 09:01:50 WARN  2 records skipped due to validation errors
+2026-10-01 09:02:00 INFO  Scheduled maintenance window starting
+not a valid log line at all ###
+2026-10-01 09:02:05 DEBUG Checkpoint saved to /var/log/app/checkpoint.bin
+2026-10-01 09:02:10 INFO  Cache cleared successfully
+2026-10-01 09:02:15 ERROR Auth token expired for user_id=4821
+2026-10-01 09:02:20 INFO  User session terminated: user_id=4821
+2026-10-01 09:02:25 WARN  Rate limit approaching for API key ak_prod_123
+2026-10-01 09:02:30 INFO  Rate limit reset for API key ak_prod_123
+2026-10-01 09:02:35 ERROR Null pointer exception in worker thread
+2026-10-01 09:02:40 DEBUG Stack trace logged to /var/log/app/errors.log
+2026-10-01 09:02:45 INFO  Worker thread restarted
+2026-10-01 09:03:00 INFO  Scheduled maintenance window ended
+2026-10-01 09:03:05 WARN  Disk usage at 85% on /dev/sda1
+2026-10-01 09:03:10 ERROR Disk write failed
+2026-10-01 09:03:15 INFO  Falling back to secondary storage
+2026-10-01 09:03:20 DEBUG Secondary storage mount verified
+2026-10-01 09:03:25 INFO  Application operating normally
+2026-10-01 09:15:00 INFO  Hourly summary: 350 requests processed
+2026-10-01 09:15:05 WARN  Response time p99 elevated: 890ms
+2026-10-01 09:15:10 ERROR Unexpected EOF reading config file
+2026-10-01 09:15:15 INFO  Config reloaded from /etc/app/config.yaml
+2026-10-01 09:15:20 INFO  All systems nominal
